@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="el">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Δίκτυο δρόμων campus</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --paper: #f5f7f3;
+      --ink: #202b27;
+      --muted: #64716b;
+      --line: #d7ded8;
+      --road: #47796b;
+      --one-way: #d15e45;
+      --node: #e7b94d;
+      --white: #fff;
+      font-family: "Avenir Next", Avenir, "Segoe UI", sans-serif;
+      font-synthesis: none;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      color: var(--ink);
+      background: var(--paper);
+    }
+
+    main {
+      width: min(1120px, calc(100% - 40px));
+      margin: 0 auto;
+      padding: 42px 0 56px;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: end;
+      gap: 24px;
+      padding-bottom: 24px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .eyebrow, .section-kicker {
+      margin: 0 0 8px;
+      color: var(--road);
+      font-size: 11px;
+      font-weight: 750;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+
+    h1, h2, p { margin-top: 0; }
+
+    h1 {
+      margin-bottom: 8px;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: clamp(30px, 5vw, 46px);
+      font-weight: 500;
+      line-height: 1.08;
+    }
+
+    .subtitle { margin-bottom: 0; color: var(--muted); font-size: 14px; }
+
+    .tolerance {
+      flex: 0 0 auto;
+      padding: 9px 12px;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    section { padding-top: 30px; }
+
+    .section-heading {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 13px;
+    }
+
+    .section-heading h2 {
+      margin: 0;
+      font-family: Georgia, "Times New Roman", serif;
+      font-size: 23px;
+      font-weight: 500;
+    }
+
+    .section-note { margin: 0; color: var(--muted); font-size: 12px; }
+
+    .map-wrap {
+      overflow: hidden;
+      border: 1px solid var(--line);
+      border-radius: 4px;
+      background-color: #fbfcf9;
+      background-image: linear-gradient(to right, rgba(71,121,107,.055) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(71,121,107,.055) 1px, transparent 1px);
+      background-size: 28px 28px;
+    }
+
+    canvas { display: block; width: 100%; height: 410px; }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      padding: 12px 14px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .legend-item { display: inline-flex; align-items: center; gap: 8px; }
+    .legend-line { width: 23px; height: 3px; background: var(--road); }
+    .legend-line.one-way { background: var(--one-way); }
+    .legend-dot { width: 11px; height: 11px; border: 2px solid var(--ink); border-radius: 50%; background: var(--node); }
+
+    .reachability {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 15px 17px;
+      border-left: 4px solid var(--one-way);
+      background: #fff;
+    }
+
+    .reachability.reachable-all { border-color: var(--road); }
+    .reachability strong { display: block; margin-bottom: 4px; font-size: 14px; }
+    .reachability p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+    .node-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+    .node-chip { padding: 3px 8px; border: 1px solid #e7c5bb; border-radius: 3px; color: #9d432f; font-size: 12px; font-weight: 700; }
+
+    .table-wrap { overflow-x: auto; border-top: 1px solid var(--line); }
+    table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+    th, td { padding: 11px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+    th { color: var(--muted); font-size: 11px; font-weight: 700; }
+    td { font-variant-numeric: tabular-nums; }
+    tbody tr:hover { background: rgba(255,255,255,.72); }
+    .node-id { font-weight: 750; }
+    .direction { color: var(--muted); }
+    .length { text-align: right; }
+    footer { padding-top: 24px; color: var(--muted); font-size: 11px; }
+
+    @media (max-width: 620px) {
+      main { width: min(100% - 28px, 1120px); padding-top: 28px; }
+      header { align-items: flex-start; flex-direction: column; gap: 14px; }
+      .section-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+      canvas { height: 320px; }
+      .legend { gap: 12px; }
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <header>
+      <div>
+        <p class="eyebrow">Εργαστήριο 4 · Μάθημα 507</p>
+        <h1>Δίκτυο δρόμων campus</h1>
+        <p class="subtitle">Δέκα δρόμοι · ΕΓΣΑ87 · αποστάσεις σε μέτρα</p>
+      </div>
+      <div class="tolerance">Ανοχή κόμβου: <strong>0,5 m</strong></div>
+    </header>
+
+    <section aria-labelledby="map-title">
+      <div class="section-heading">
+        <h2 id="map-title">Σχέδιο δικτύου</h2>
+        <p class="section-note" id="map-summary"></p>
+      </div>
+      <div class="map-wrap">
+        <canvas id="network-map" aria-label="Σχεδιάγραμμα του δικτύου δρόμων"></canvas>
+        <div class="legend" aria-label="Υπόμνημα">
+          <span class="legend-item"><i class="legend-line"></i>Δρόμος δύο κατευθύνσεων</span>
+          <span class="legend-item"><i class="legend-line one-way"></i>Μονόδρομος</span>
+          <span class="legend-item"><i class="legend-dot"></i>Κόμβος</span>
+        </div>
+      </div>
+    </section>
+
+    <section aria-labelledby="reach-title">
+      <div class="section-heading">
+        <h2 id="reach-title">Εξάπλωση από Κ1</h2>
+        <p class="section-note">Ακολουθούνται οι επιτρεπόμενες κατευθύνσεις</p>
+      </div>
+      <div class="reachability" id="reachability"></div>
+    </section>
+
+    <section aria-labelledby="nodes-title">
+      <div class="section-heading">
+        <h2 id="nodes-title">Κόμβοι</h2>
+        <p class="section-note">Ο βαθμός είναι το πλήθος των εξερχόμενων γειτόνων</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Κόμβος</th><th>X (m)</th><th>Y (m)</th><th>Βαθμός</th><th>Γείτονες</th></tr></thead>
+          <tbody id="nodes-table"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section aria-labelledby="edges-title">
+      <div class="section-heading">
+        <h2 id="edges-title">Ακμές</h2>
+        <p class="section-note">Μήκος πολυγραμμής, ως άθροισμα διαδοχικών τμημάτων</p>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Δρόμος</th><th>Από</th><th>Προς</th><th class="length">Μήκος (m)</th></tr></thead>
+          <tbody id="edges-table"></tbody>
+        </table>
+      </div>
+    </section>
+    <footer>Οι κόμβοι συγχωνεύονται με βάση τη σειρά εμφάνισης των άκρων και την ευκλείδεια απόσταση.</footer>
+  </main>
+
+  <script>
+    const dromoi = [
+      { onoma: "Τ1", simeia: [[456000, 4553000], [456120, 4553000]], monodromos: false },
+      { onoma: "Τ2", simeia: [[456120, 4553000], [456250, 4553000]], monodromos: true },
+      { onoma: "Τ3", simeia: [[456000, 4553000], [456000, 4553090]], monodromos: false },
+      { onoma: "Τ4", simeia: [[456120, 4553000], [456120, 4553090]], monodromos: false },
+      { onoma: "Τ5", simeia: [[456000, 4553090], [456060, 4553110], [456120, 4553090]], monodromos: false },
+      { onoma: "Τ6", simeia: [[456120, 4553090], [456250, 4553090.3]], monodromos: false },
+      { onoma: "Τ7", simeia: [[456250, 4553000], [456250, 4553090]], monodromos: false },
+      { onoma: "Τ8", simeia: [[456120, 4553090], [456120, 4553170]], monodromos: false },
+      { onoma: "Τ9", simeia: [[456400, 4553050], [456480, 4553050]], monodromos: false },
+      { onoma: "Τ10", simeia: [[456480, 4553050], [456480, 4553120]], monodromos: false }
+    ];
+    const ANOCHI = 0.5;
+
+    const komvoi = [];
+    const akmes = [];
+    const geitones = new Map();
+
+    function getOrCreateNode(point) {
+      const found = komvoi.find(node => Math.hypot(node.x - point[0], node.y - point[1]) < ANOCHI);
+      if (found) return found;
+      const node = { id: `Κ${komvoi.length + 1}`, x: point[0], y: point[1] };
+      komvoi.push(node);
+      geitones.set(node.id, new Set());
+      return node;
+    }
+
+    for (const road of dromoi) {
+      const start = getOrCreateNode(road.simeia[0]);
+      const end = getOrCreateNode(road.simeia[road.simeia.length - 1]);
+      const length = road.simeia.slice(1).reduce((sum, point, index) => {
+        const previous = road.simeia[index];
+        return sum + Math.hypot(point[0] - previous[0], point[1] - previous[1]);
+      }, 0);
+      akmes.push({ road, start, end, length });
+      geitones.get(start.id).add(end.id);
+      if (!road.monodromos) geitones.get(end.id).add(start.id);
+    }
+
+    const visited = new Set([komvoi[0].id]);
+    const queue = [komvoi[0].id];
+    for (let index = 0; index < queue.length; index++) {
+      for (const neighbor of geitones.get(queue[index])) {
+        if (!visited.has(neighbor)) {
+          visited.add(neighbor);
+          queue.push(neighbor);
+        }
+      }
+    }
+    const inaccessible = komvoi.filter(node => !visited.has(node.id));
+
+    document.querySelector("#map-summary").textContent = `${komvoi.length} κόμβοι · ${akmes.length} ακμές`;
+    document.querySelector("#nodes-table").innerHTML = komvoi.map(node => {
+      const neighbors = [...geitones.get(node.id)];
+      return `<tr><td class="node-id">${node.id}</td><td>${node.x.toFixed(1)}</td><td>${node.y.toFixed(1)}</td><td>${neighbors.length}</td><td>${neighbors.length ? neighbors.join(", ") : "—"}</td></tr>`;
+    }).join("");
+    document.querySelector("#edges-table").innerHTML = akmes.map(edge => `
+      <tr>
+        <td class="node-id">${edge.road.onoma}${edge.road.monodromos ? " ↗" : ""}</td>
+        <td>${edge.start.id}</td>
+        <td class="direction">${edge.road.monodromos ? "→" : "↔"} ${edge.end.id}</td>
+        <td class="length">${edge.length.toFixed(1)}</td>
+      </tr>`).join("");
+
+    const reachability = document.querySelector("#reachability");
+    if (inaccessible.length) {
+      reachability.innerHTML = `<div><strong>${inaccessible.length} κόμβοι δεν είναι προσπελάσιμοι</strong><p>Από τον Κ1, με βάση τη φορά των δρόμων:</p></div><div class="node-chips">${inaccessible.map(node => `<span class="node-chip">${node.id}</span>`).join("")}</div>`;
+    } else {
+      reachability.classList.add("reachable-all");
+      reachability.innerHTML = "<div><strong>Όλοι οι κόμβοι είναι προσπελάσιμοι</strong><p>Από τον Κ1, με βάση τη φορά των δρόμων.</p></div>";
+    }
+
+    const canvas = document.querySelector("#network-map");
+    const context = canvas.getContext("2d");
+
+    function drawArrow(points, project) {
+      const lengths = [];
+      let total = 0;
+      for (let index = 1; index < points.length; index++) {
+        const distance = Math.hypot(points[index][0] - points[index - 1][0], points[index][1] - points[index - 1][1]);
+        lengths.push(distance);
+        total += distance;
+      }
+      let target = total * 0.58;
+      for (let index = 0; index < lengths.length; index++) {
+        if (target <= lengths[index]) {
+          const ratio = target / lengths[index];
+          const from = project(points[index]);
+          const to = project(points[index + 1]);
+          const x = from.x + (to.x - from.x) * ratio;
+          const y = from.y + (to.y - from.y) * ratio;
+          const angle = Math.atan2(to.y - from.y, to.x - from.x);
+          context.save();
+          context.translate(x, y);
+          context.rotate(angle);
+          context.beginPath();
+          context.moveTo(7, 0);
+          context.lineTo(-5, -4.5);
+          context.lineTo(-5, 4.5);
+          context.closePath();
+          context.fill();
+          context.restore();
+          return;
+        }
+        target -= lengths[index];
+      }
+    }
+
+    function drawMap() {
+      const bounds = canvas.getBoundingClientRect();
+      const ratio = window.devicePixelRatio || 1;
+      canvas.width = Math.round(bounds.width * ratio);
+      canvas.height = Math.round(bounds.height * ratio);
+      context.setTransform(ratio, 0, 0, ratio, 0, 0);
+      context.clearRect(0, 0, bounds.width, bounds.height);
+
+      const allPoints = dromoi.flatMap(road => road.simeia);
+      const minX = Math.min(...allPoints.map(point => point[0]));
+      const maxX = Math.max(...allPoints.map(point => point[0]));
+      const minY = Math.min(...allPoints.map(point => point[1]));
+      const maxY = Math.max(...allPoints.map(point => point[1]));
+      const scale = Math.min((bounds.width - 90) / (maxX - minX), (bounds.height - 70) / (maxY - minY));
+      const offsetX = (bounds.width - (maxX - minX) * scale) / 2;
+      const offsetY = (bounds.height - (maxY - minY) * scale) / 2;
+      const project = point => ({ x: offsetX + (point[0] - minX) * scale, y: bounds.height - offsetY - (point[1] - minY) * scale });
+
+      for (const edge of akmes) {
+        const points = edge.road.simeia.map(point => [...point]);
+        points[0] = [edge.start.x, edge.start.y];
+        points[points.length - 1] = [edge.end.x, edge.end.y];
+        context.strokeStyle = edge.road.monodromos ? "#d15e45" : "#47796b";
+        context.fillStyle = context.strokeStyle;
+        context.lineWidth = 3;
+        context.lineCap = "round";
+        context.lineJoin = "round";
+        context.beginPath();
+        points.forEach((point, index) => {
+          const position = project(point);
+          if (index === 0) context.moveTo(position.x, position.y);
+          else context.lineTo(position.x, position.y);
+        });
+        context.stroke();
+        if (edge.road.monodromos) drawArrow(points, project);
+      }
+
+      for (const node of komvoi) {
+        const position = project([node.x, node.y]);
+        context.beginPath();
+        context.arc(position.x, position.y, 6, 0, Math.PI * 2);
+        context.fillStyle = "#e7b94d";
+        context.fill();
+        context.lineWidth = 2;
+        context.strokeStyle = "#202b27";
+        context.stroke();
+        context.font = "700 12px 'Avenir Next', Avenir, sans-serif";
+        context.textAlign = "left";
+        context.textBaseline = "bottom";
+        context.fillStyle = "#202b27";
+        context.fillText(node.id, position.x + 8, position.y - 7);
+      }
+    }
+
+    new ResizeObserver(drawMap).observe(canvas);
+  </script>
+</body>
+</html>
